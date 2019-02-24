@@ -16,9 +16,17 @@ class Renderer: NSObject {
     // Data of pendulums
     var vertexBuffer: MTLBuffer!
     var colorBuffer: MTLBuffer!
-    var pendulumData: [Pendulum]!
+    var pendulumData: [DoublePendulum]!
     var pendulumBuffer: MTLBuffer!
-    
+    var penduluStructData: [DoublePendulumStruct]!
+    var pendulumStructBuffer: MTLBuffer!
+    /*
+    var pIndex: [UInt16]!
+    var lIndex: [UInt16]!
+    var pIndexBuffer: MTLBuffer!
+    var lIndexBuffer: MTLBuffer!
+    */
+    let N = 2
     // Data oto draw pendulums?
     
     init(metalView: MTKView) {
@@ -32,16 +40,28 @@ class Renderer: NSObject {
         let size: Float = 0.4
         
         /*
-         let pendulum = Pendulum(position: float3x4([float4(0.0, 0.0, 0.0, 1.0),
-         float4(0.3*size, 0.5*size, 0.0, 1.0),
-         float4(-0.2*size, 0.8*size, 0.0, 1.0)]),
-         color: float4(1.0, 0.0, 0.0, 1.0))
-         */
-        pendulumData = [createPendulum(length: size, theta1: 0.4*Float.pi, theta2: 0.3*Float.pi,
+        pendulumData = [createDoublePendulum(length: size, theta1: 0.4*Float.pi, theta2: 0.3*Float.pi,
                                        color: float4(1.0, 0.0, 0.0, 1.0)),
-                        createPendulum(length: size, theta1: 0.8*Float.pi, theta2: 0.5*Float.pi,
+                        createDoublePendulum(length: size, theta1: 0.8*Float.pi, theta2: 0.5*Float.pi,
                                        color: float4(0.0, 1.0, 0.0, 1.0))]
-        
+        */
+        penduluStructData = []
+        pendulumData = []
+        for i in 1..<N+1 {
+            let ps = DoublePendulumStruct(m: float2(1.0, 1.0),
+                                          l: float2(size, size),
+                                          theta: float2(Float(i)/4*Float.pi, Float(i)/2*Float.pi),
+                                          dtheta: float2(0.0, 0.0))
+            var pendulum = DoublePendulum(position: calcDoublePendulumPosition(doublePendulumStruct: ps),
+                                          color: float4(0.0, 1.0, 0.0, 1.0))
+            penduluStructData.append(ps)
+            pendulumData.append(pendulum)
+        }
+        /* // Indexを用いて描画しようとした痕跡
+        for i in 0..<N {
+            eIndex.append(UInt16(i))
+            eIndex.append(UInt16(i+1))
+        } */
         createCommandQueue(device: device)
         createPipelineState(device: device)
         createBuffer(device: device)
@@ -70,7 +90,7 @@ class Renderer: NSObject {
     
     func createBuffer(device: MTLDevice) {
         pendulumBuffer = device.makeBuffer(bytes: pendulumData,
-                                           length: MemoryLayout<Pendulum>.stride * pendulumData.count,
+                                           length: MemoryLayout<DoublePendulum>.stride * pendulumData.count,
                                            options: [])
     }
 }

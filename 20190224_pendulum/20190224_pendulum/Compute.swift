@@ -46,7 +46,7 @@ class Compute: NSObject {
         computeCommandBuffer.commit()
         computeCommandBuffer.waitUntilCompleted()
     }
-    func calulatePos(pendulum: Pendulum) -> Pendulum {
+    func calulatePos(pendulum: DoublePendulum) -> DoublePendulum {
         return pendulum
     }
 }

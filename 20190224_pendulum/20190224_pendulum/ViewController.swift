@@ -9,7 +9,7 @@
 import MetalKit
 
 class ViewController: NSViewController {
-    var renderer: Renderer?
+    var renderer: Renderer!
     override func viewDidLoad() {
         super.viewDidLoad()
         
