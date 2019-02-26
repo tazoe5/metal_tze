@@ -30,33 +30,39 @@ struct DoublePendulumStruct {
 }
 
 //Kinetic Energy
-func calcRungeKutta(ps: DoublePendulumStruct) -> DoublePendulumStruct {
+func calcRungeKutta(doublePendulumStruct ps: DoublePendulumStruct, dt: Float) -> DoublePendulumStruct {
     var ps = ps
     let g: Float = 9.8
     // calc delta^2 theta0
-    let term11 = (-2*ps.l[1]*pow(ps.dtheta[1], 2)*sin(ps.theta[0] - ps.theta[1]) - (2 + ps.m[0]/ps.m[1])*g*sin(ps.theta[0]))
-    let term12 = 2*(g*sin(ps.theta[1] - 2*ps.l[0]*pow(ps.dtheta[0], 2)*sin(ps.theta[0] - ps.theta[1])*cos(ps.theta[0] - ps.theta[1])))
-    let term13 = ps.l[0]*(ps.m[0]/ps.m[1] + 4*pow(sin(ps.theta[0] - ps.theta[1]), 2))
-    let ddtheta0 = (term11+term12) / term13
+    let a1 = (ps.m[0] + ps.m[1])*ps.l[0]*ps.l[0]
+    let a2 = ps.m[1]*ps.l[1]*ps.l[1]
     
-    // calc delta^2 theta1
-    let term21 = (4 + ps.m[0]/ps.m[1])*(2*ps.l[0]*pow(ps.theta[0], 2)*sin(ps.theta[0] - ps.theta[1]) - g*sin(ps.theta[1]))
-    let term22 = 2*((2 + ps.m[0]/ps.m[1])*g*sin(ps.theta[0]) + 2*ps.l[1]*pow(ps.dtheta[1], 2)*sin(ps.theta[0] - ps.theta[1])*cos(ps.theta[0] - ps.theta[1]))
-    let term23 = ps.l[1]*(ps.m[0]/ps.m[1] + 4*pow(sin(ps.theta[0] - ps.theta[1]), 2))
-    let ddtheta1 = (term21+term22) / term23
+    let b = ps.m[1]*ps.l[0]*ps.l[1]*cos(ps.theta[0] - ps.theta[1])
+    let d1 = -ps.m[1]*ps.l[0]*ps.l[1]*ps.dtheta[1]*ps.dtheta[1]*sin(ps.theta[0] - ps.theta[1]) - (ps.m[0] + ps.m[1]) * g * ps.l[0]*sin(ps.theta[0])
+    let d2 = ps.m[1]*ps.l[0]*ps.l[1] * ps.dtheta[0]*ps.dtheta[0]*sin(ps.theta[0] - ps.theta[1]) - ps.m[1]*g*ps.l[1]*sin(ps.theta[1])
     
+    let ddtheta0 = (a2*d1 - b*d2) / (a1*a2 - b*b)
+    if ((a1*a2 - b*b) == 0 ){
+        print("0 division")
+        
+    }
+    let ddtheta1 = (a1*d2 - b*d1) / (a1*a2 - b*b)
+
     // calc delta theta
-    ps.dtheta[0] += ddtheta0
-    ps.dtheta[1] += ddtheta1
-    ps.theta[0] += ps.dtheta[0]
-    ps.theta[1] += ps.dtheta[1]
+    ps.dtheta[0] += ddtheta0*dt
+    ps.dtheta[1] += ddtheta1*dt
+    ps.theta[0] += ps.dtheta[0]*dt
+    ps.theta[1] += ps.dtheta[1]*dt
     return ps
 }
 
 func calcDoublePendulumPosition(doublePendulumStruct ps: DoublePendulumStruct) -> float3x4 {
+    let theta0 = ps.theta[0] - Float.pi
+    let theta1 = ps.theta[1] - Float.pi
+    
     let first = float4(0.0, 0.0, 0.0, 1.0)
-    let second = float4(ps.l[0]*cos(ps.theta[0]), ps.l[0]*sin(ps.theta[0]), 0.0, 1.0)
-    let third = float4(second[0] + ps.l[1]*cos(ps.theta[1]), second[1] + ps.l[1]*sin(ps.theta[1]), 0.0, 1.0)
+    let second = float4(ps.l[0]*sin(theta0), ps.l[0]*cos(theta0), 0.0, 1.0)
+    let third = float4(second[0] + ps.l[1]*sin(theta1), second[1] + ps.l[1]*cos(theta1), 0.0, 1.0)
     return float3x4(columns: (first, second, third))
 }
 

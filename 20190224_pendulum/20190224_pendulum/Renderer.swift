@@ -18,15 +18,18 @@ class Renderer: NSObject {
     var colorBuffer: MTLBuffer!
     var pendulumData: [DoublePendulum]!
     var pendulumBuffer: MTLBuffer!
-    var penduluStructData: [DoublePendulumStruct]!
+    var pendulumStructData: [DoublePendulumStruct]!
     var pendulumStructBuffer: MTLBuffer!
-    /*
+    
     var pIndex: [UInt16]!
     var lIndex: [UInt16]!
     var pIndexBuffer: MTLBuffer!
     var lIndexBuffer: MTLBuffer!
-    */
-    let N = 2
+    
+    let N = 10
+    let dt: Float = 0.02
+    let alpha: Float = 0.000001
+    var timer: Int = 0
     // Data oto draw pendulums?
     
     init(metalView: MTKView) {
@@ -39,23 +42,28 @@ class Renderer: NSObject {
         
         let size: Float = 0.4
         
-        /*
-        pendulumData = [createDoublePendulum(length: size, theta1: 0.4*Float.pi, theta2: 0.3*Float.pi,
-                                       color: float4(1.0, 0.0, 0.0, 1.0)),
-                        createDoublePendulum(length: size, theta1: 0.8*Float.pi, theta2: 0.5*Float.pi,
-                                       color: float4(0.0, 1.0, 0.0, 1.0))]
-        */
-        penduluStructData = []
+        pendulumStructData = []
         pendulumData = []
-        for i in 1..<N+1 {
-            let ps = DoublePendulumStruct(m: float2(1.0, 1.0),
-                                          l: float2(size, size),
-                                          theta: float2(Float(i)/4*Float.pi, Float(i)/2*Float.pi),
+        pIndex = []
+        lIndex = []
+        
+        for i in 0..<N {
+            let i = Float(i)
+            let ps = DoublePendulumStruct(m: float2(1.0, 2.0),
+                                          l: float2(size/3*4, size*3/4),
+                                          theta: float2(7/3*Float.pi+alpha*i, 3/4*Float.pi+alpha*i),
                                           dtheta: float2(0.0, 0.0))
-            var pendulum = DoublePendulum(position: calcDoublePendulumPosition(doublePendulumStruct: ps),
-                                          color: float4(0.0, 1.0, 0.0, 1.0))
-            penduluStructData.append(ps)
+            let pendulum = DoublePendulum(position: calcDoublePendulumPosition(doublePendulumStruct: ps),
+                                          color: float4(1.0, 0.0, 1.0, 1.0))
+            pendulumStructData.append(ps)
             pendulumData.append(pendulum)
+            let index = Int(i)
+            for j in 0..<4 {
+                lIndex.append(UInt16(index*4 + j))
+                if j != 2 {
+                    pIndex.append(UInt16(index*4 + j))
+                }
+            }
         }
         /* // Indexを用いて描画しようとした痕跡
         for i in 0..<N {
@@ -92,6 +100,10 @@ class Renderer: NSObject {
         pendulumBuffer = device.makeBuffer(bytes: pendulumData,
                                            length: MemoryLayout<DoublePendulum>.stride * pendulumData.count,
                                            options: [])
+        pIndexBuffer = device.makeBuffer(bytes: pIndex,
+                                         length: MemoryLayout<UInt16>.stride * pIndex.count)
+        lIndexBuffer = device.makeBuffer(bytes: lIndex,
+                                         length: MemoryLayout<UInt16>.stride * lIndex.count)
     }
 }
 
@@ -100,6 +112,10 @@ extension Renderer: MTKViewDelegate {
     }
     
     func draw(in view: MTKView) {
+        timer += 1
+        if timer != 1 && timer < 100 {
+            return
+        }
         guard let drawable = view.currentDrawable,
             let renderPassDescriptor = view.currentRenderPassDescriptor,
             let commandBuffer = commandQueue.makeCommandBuffer(),
@@ -107,15 +123,31 @@ extension Renderer: MTKViewDelegate {
             else { return }
         
         // write drawing code in the below
+        for i in 0..<N {
+            pendulumStructData[i] = calcRungeKutta(doublePendulumStruct: pendulumStructData[i], dt: dt)
+            pendulumData[i].position = calcDoublePendulumPosition(doublePendulumStruct: pendulumStructData[i])
+            let bufferDate = pendulumBuffer.contents()
+            let nbufferData = bufferDate.bindMemory(to: DoublePendulum.self, capacity: pendulumData.count)
+            nbufferData[i].position = pendulumData[i].position
+        }
         renderEncoder.setRenderPipelineState(renderPipelineState)
         renderEncoder.setVertexBuffer(pendulumBuffer, offset: 0, index: 0)
+        /*
         renderEncoder.drawPrimitives(type: .line,
                                      vertexStart: 0,
                                      vertexCount: pendulumData.count*4)
+        renderEncoder.drawPrimitives(type: .point,
+                                     vertexStart: 0,
+                                     vertexCount: pendulumData.count*4)
+        */
+        renderEncoder.drawIndexedPrimitives(type: .point,
+            indexCount: pIndex.count, indexType: .uint16, indexBuffer: pIndexBuffer, indexBufferOffset: 0)
+        renderEncoder.drawIndexedPrimitives(type: .line, indexCount: lIndex.count, indexType: .uint16, indexBuffer: lIndexBuffer, indexBufferOffset: 0)
         // write drawing code in the aboce
         renderEncoder.endEncoding()
         
         commandBuffer.present(drawable)
         commandBuffer.commit()
+        
     }
 }
